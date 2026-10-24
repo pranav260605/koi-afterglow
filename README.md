@@ -1,43 +1,27 @@
-# KOI AFTERGLOW — Interactive Digital Pond
+# 🐟 Chroma Afterglow
 
-A tranquil, interactive web experiment where origami paper koi swim through continuous dark-water currents. Built with vanilla HTML5 Canvas 2D and CSS. Inspired by the interaction patterns of [Noise Garden](https://github.com/NathanRullier/noise-garden) by Nathan Rullier.
+*A 60-minute creative coding sprint to turn a blank canvas into a living digital pond.*
 
-## Features
-- **Procedural Origami Rendering**: Origami fish crafted dynamically via Canvas 2D polygon path drawing featuring multi-faceted body geometry, side fins, tail fins, and paper fold lines.
-- **Boids Steering Physics**: Smooth flocking algorithms combined with dynamic pointer wakes and water disturbance repulsion.
-- **Interactive Water Ripples**: Click or tap anywhere on the canvas to emit physical expanding wave ripples that bend the swimming trajectories of nearby koi.
-- **Scene Speed Controls**: Toggle between **Stillness** (calm, slow drift) and **Current** (normal flow speed).
-- **Optional Sound Mode**: Micro-reactive Web Audio analyzer mode that alters koi swimming speeds based on live ambient audio levels.
-- **Responsive & Accessible**: Auto-adapts to retina/mobile screens and respects the browser's `prefers-reduced-motion` settings.
+I stumbled across the idea of interactive particle systems and wondered: what if instead of generic dots or glowing orbs, we had something that felt organic? Something with an actual head, tail, and fluid movement? 
 
-## Controls
-- **Mouse Movement**: Move the cursor across the pond to stir wakes and guide nearby fish.
-- **Click / Tap**: Click anywhere to emit expanding circular ripples.
-- **Stillness**: Reduces swimming speed to create a calm, restful state.
-- **Current**: Restores normal, fluid swimming velocity.
-- **Pause / Resume**: Freezes and resumes the canvas animation loop.
-- **Reset**: Re-initializes the school positions and clears active water ripples.
-- **Sound Mode**: Requests optional microphone access to drive fish speeds with ambient audio.
+One hour, zero frameworks, and a lot of Canvas 2D math later, **Chroma Afterglow** was born. It's a lightweight, interactive web experiment where procedural koi fish swim through a simulated current that responds to your mouse movements and clicks. 
 
-## Technology Stack
-- **Language**: Standard HTML5, CSS3, JavaScript (ES6+)
-- **Graphics Engine**: HTML5 Canvas 2D Context
-- **Audio Engine**: Web Audio API (`AudioContext`, `AnalyserNode`)
-- **Dependencies**: None (Zero build step, zero third-party packages)
+No React. No Three.js. No `npm install`. Just pure vanilla JavaScript and a bit of boids flocking algorithm magic.
 
-## Running Locally
-1. Clone or download this repository to your computer.
-2. Open the project folder in Visual Studio Code.
-3. Launch `index.html` directly in any web browser, or use the VS Code **Live Server** extension.
+## ✨ What's happening on screen?
+* **Procedural Koi:** Every fish is drawn on the fly using curved paths (quadratic curves for the win) so their tails actually sweep and wiggle based on their current velocity.
+* **Flocking (Boids):** The fish naturally group up, align their swimming direction, and avoid crashing into each other.
+* **Fluid Interaction:** Moving your cursor stirs the water, leaving a fading wake that gently pushes and pulls the school. Clicking or tapping drops a ripple that scatters them.
+* **Micro-reactive:** There's an experimental (and entirely optional) Sound Mode that ties their swimming speed to the ambient noise in your room.
 
-## Deployment to GitHub Pages
-This project includes a pre-configured GitHub Actions workflow in `.github/workflows/pages.yml`.
+## 🚀 How to run this (It's stupidly simple)
+Because I wanted to keep this purely static without any local servers or build steps:
+1. Clone this repo or download the ZIP.
+2. Double-click `index.html` to open it in your browser.
+3. That's literally it.
 
-1. Push your changes to the `main` branch of your GitHub repository.
-2. In GitHub, navigate to **Settings** -> **Pages**.
-3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-4. The site will deploy automatically to `https://<your-username>.github.io/<repository-name>/`.
-
-## Attribution & License
-- Inspired by [Noise Garden](https://github.com/NathanRullier/noise-garden) by Nathan Rullier.
-- License: MIT open license.
+## 🛠️ Tech Stack
+* **HTML5 Canvas 2D** (Doing all the heavy lifting)
+* **Vanilla JavaScript** (ES6 classes and vector math)
+* **CSS3** (CSS variables and backdrop-filters for the glass UI)
+* Deployed straight to GitHub Pages via Actions.
