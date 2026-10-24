@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHROMA AFTERGLOW — Interactive Digital Pond</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-top: #020617;
+      --bg-bottom: #0f172a;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent-glow: rgba(147, 197, 253, 0.25);
+      --panel-bg: rgba(2, 6, 23, 0.65);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --btn-hover: rgba(255, 255, 255, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-top);
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      user-select: none; -webkit-user-select: none;
+    }
+
+    #pondCanvas {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1; display: block;
+    }
+
+    .ui-layer {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10; pointer-events: none;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 2rem;
+    }
+
+    header {
+      pointer-events: auto; max-width: 420px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      padding: 1.5rem; border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    h1 {
+      font-family: 'Cinzel', serif; font-size: 1.8rem;
+      font-weight: 600; letter-spacing: 0.15em;
+      color: #f8fafc; margin-bottom: 0.25rem;
+      text-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .subtitle { font-size: 0.9rem; color: var(--text-muted); font-weight: 300; margin-bottom: 0.75rem; }
+
+    .interaction-hint {
+      font-size: 0.75rem; color: #7dd3fc;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      border-top: 1px solid var(--panel-border); padding-top: 0.75rem;
+    }
+
+    .controls-panel {
+      pointer-events: auto; align-self: flex-start;
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      padding: 0.75rem; border-radius: 10px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 0.5rem 0.9rem; font-size: 0.8rem;
+      font-family: 'Inter', sans-serif; border-radius: 6px;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+
+    .btn:hover { background: var(--btn-hover); border-color: rgba(255, 255, 255, 0.25); color: #ffffff; }
+    .btn.active { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #38bdf8; }
+
+    footer { pointer-events: auto; align-self: center; font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; }
+
+    @media (max-width: 600px) {
+      .ui-layer { padding: 1rem; }
+      header { max-width: 100%; padding: 1rem; }
+      .controls-panel { align-self: center; width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="pondCanvas"></canvas>
+
+  <div class="ui-layer">
+    <header>
+      <h1>CHROMA AFTERGLOW</h1>
+      <p class="subtitle">A vibrant pond that remembers your movement.</p>
+      <p class="interaction-hint">Move to stir the current · Click to send a ripple</p>
+    </header>
+
+    <div class="controls-panel">
+      <button class="btn" id="btnStillness">Stillness</button>
+      <button class="btn active" id="btnCurrent">Current</button>
+      <button class="btn" id="btnPause">Pause</button>
+      <button class="btn" id="btnReset">Reset</button>
+      <button class="btn" id="btnSound">Sound Mode: Off</button>
+    </div>
+
+    <footer>
+      A colourful experiment in motion, attention, and artificial life.
+    </footer>
+  </div>
+
+  <script>
+    // --- CONFIGURATION ---
+    const CONFIG = {
+      fishCount: 150, // High density, but optimized for smooth curved shapes
+      baseSpeed: 1.8,
+      stillnessSpeed: 0.5,
+      maxSpeed: 3.5,
+      perceptionRadius: 70,
+      avoidRadius: 25,
+      mouseInfluenceRadius: 180,
+      rippleForce: 5.0
+    };
+
+    // Vibrant aquatic palettes (Primary body, Secondary tail, Accent fins)
+    const PALETTES = [
+      { name: 'Koi Gold', primary: '#f59e0b', secondary: '#fbbf24', accent: '#fef3c7', glow: 'rgba(245, 158, 11, 0.5)' },
+      { name: 'Neon Coral', primary: '#f43f5e', secondary: '#fb7185', accent: '#ffe4e6', glow: 'rgba(244, 63, 94, 0.5)' },
+      { name: 'Electric Blue', primary: '#0ea5e9', secondary: '#38bdf8', accent: '#e0f2fe', glow: 'rgba(14, 165, 233, 0.5)' },
+      { name: 'Jade Green', primary: '#10b981', secondary: '#34d399', accent: '#d1fae5', glow: 'rgba(16, 185, 129, 0.5)' },
+      { name: 'Amethyst', primary: '#a855f7', secondary: '#c084fc', accent: '#f3e8ff', glow: 'rgba(168, 85, 247, 0.5)' }
+    ];
+
+    const canvas = document.getElementById('pondCanvas');
+    const ctx = canvas.getContext('2d');
+    let width = 0, height = 0, dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      width = window.innerWidth; height = window.innerHeight;
+      canvas.width = width * dpr; canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- VECTOR MATH ---
+    class Vector {
+      constructor(x = 0, y = 0) { this.x = x; this.y = y; }
+      add(v) { this.x += v.x; this.y += v.y; return this; }
+      sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+      mult(n) { this.x *= n; this.y *= n; return this; }
+      div(n) { this.x /= n; this.y /= n; return this; }
+      mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+      heading() { return Math.atan2(this.y, this.x); }
+      normalize() { let m = this.mag(); if (m !== 0) this.div(m); return this; }
+      limit(max) { if (this.mag() > max) { this.normalize(); this.mult(max); } return this; }
+      static dist(v1, v2) { return Math.sqrt((v1.x - v2.x)**2 + (v1.y - v2.y)**2); }
+      static sub(v1, v2) { return new Vector(v1.x - v2.x, v1.y - v2.y); }
+    }
+
+    const state = { isPaused: false, speedMultiplier: 1.0, soundMode: false, audioLevel: 0 };
+    const pointer = { pos: new Vector(-1000, -1000), prevPos: new Vector(-1000, -1000), velocity: 0, isHovered: false };
+    const ripples = [];
+    const wakeParticles = [];
+
+    class Ripple {
+      constructor(x, y) {
+        this.pos = new Vector(x, y);
+        this.radius = 1;
+        this.maxRadius = Math.max(width, height) * 0.3;
+        this.alpha = 1.0;
+        this.speed = 4;
+      }
+      update() { this.radius += this.speed; this.alpha = 1.0 - (this.radius / this.maxRadius); }
+      draw(context) {
+        if (this.alpha <= 0) return;
+        context.save();
+        context.beginPath(); context.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+        context.strokeStyle = `rgba(125, 211, 252, ${this.alpha * 0.6})`;
+        context.lineWidth = 2; context.stroke();
+        context.restore();
+      }
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      pointer.prevPos = new Vector(pointer.pos.x, pointer.pos.y);
+      pointer.pos.x = e.clientX; pointer.pos.y = e.clientY;
+      pointer.isHovered = true;
+      pointer.velocity = Vector.dist(pointer.pos, pointer.prevPos);
+      if (pointer.velocity > 2 && Math.random() > 0.6) {
+        wakeParticles.push({ x: pointer.pos.x, y: pointer.pos.y, alpha: 0.3, radius: Math.min(pointer.velocity * 0.3, 8) });
+      }
+    });
+    window.addEventListener('mouseleave', () => { pointer.isHovered = false; });
+
+    const triggerRipple = (x, y) => {
+      ripples.push(new Ripple(x, y));
+      school.forEach(fish => {
+        if (Vector.dist(fish.pos, new Vector(x, y)) < 250) {
+          let force = Vector.sub(fish.pos, new Vector(x, y)).normalize().mult(CONFIG.rippleForce);
+          fish.vel.add(force);
+        }
+      });
+    };
+
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.ui-layer')) triggerRipple(e.clientX, e.clientY);
+    });
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0 && !e.touches[0].target.closest('.ui-layer')) {
+        triggerRipple(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    });
+
+    // --- CURVED FISH CLASS ---
+    class KoiFish {
+      constructor(x, y) {
+        this.pos = new Vector(x, y);
+        this.vel = new Vector((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+        this.acc = new Vector(0, 0);
+        this.size = 8 + Math.random() * 6; // Scales the entire fish
+        this.palette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        this.tailAngle = Math.random() * Math.PI * 2;
+        this.tailSpeed = 0.15 + Math.random() * 0.05;
+        this.maxForce = 0.08;
+      }
+
+      update() {
+        let targetMaxSpeed = CONFIG.baseSpeed * state.speedMultiplier;
+        if (state.soundMode && state.audioLevel > 0) targetMaxSpeed += state.audioLevel * 3.0;
+
+        this.vel.add(this.acc);
+        this.vel.limit(targetMaxSpeed);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+
+        const margin = 40;
+        if (this.pos.x < -margin) this.pos.x = width + margin;
+        if (this.pos.x > width + margin) this.pos.x = -margin;
+        if (this.pos.y < -margin) this.pos.y = height + margin;
+        if (this.pos.y > height + margin) this.pos.y = -margin;
+
+        // Tail wiggles based on swimming speed
+        this.tailAngle += this.tailSpeed * (this.vel.mag() * 0.6 + 0.4);
+      }
+
+      applyForce(force) { this.acc.add(force); }
+
+      behave(school) {
+        let separation = new Vector(0, 0), alignment = new Vector(0, 0), cohesion = new Vector(0, 0);
+        let sepCount = 0, alignCount = 0, cohCount = 0;
+
+        school.forEach(other => {
+          let d = Vector.dist(this.pos, other.pos);
+          if (d > 0 && d < CONFIG.avoidRadius) {
+            separation.add(Vector.sub(this.pos, other.pos).normalize().div(d));
+            sepCount++;
+          }
+          if (d > 0 && d < CONFIG.perceptionRadius) {
+            alignment.add(other.vel); alignCount++;
+            cohesion.add(other.pos); cohCount++;
+          }
+        });
+
+        if (sepCount > 0) {
+          separation.div(sepCount).normalize().mult(CONFIG.baseSpeed).sub(this.vel).limit(this.maxForce * 1.5);
+          this.applyForce(separation);
+        }
+        if (alignCount > 0) {
+          alignment.div(alignCount).normalize().mult(CONFIG.baseSpeed).sub(this.vel).limit(this.maxForce);
+          this.applyForce(alignment);
+        }
+        if (cohCount > 0) {
+          cohesion.div(cohCount);
+          let desired = Vector.sub(cohesion, this.pos).normalize().mult(CONFIG.baseSpeed);
+          cohesion = Vector.sub(desired, this.vel).limit(this.maxForce);
+          this.applyForce(cohesion);
+        }
+
+        // Pointer Interaction
+        if (pointer.isHovered) {
+          let d = Vector.dist(this.pos, pointer.pos);
+          if (d > 0 && d < CONFIG.mouseInfluenceRadius) {
+            if (d < 40) {
+              this.applyForce(Vector.sub(this.pos, pointer.pos).normalize().mult(0.8)); // Flee close
+            } else {
+              let desired = Vector.sub(pointer.pos, this.pos).normalize().mult(CONFIG.baseSpeed);
+              this.applyForce(Vector.sub(desired, this.vel).limit(this.maxForce * 0.6)); // Chase far
+            }
+          }
+        }
+      }
+
+      draw(context) {
+        let angle = this.vel.heading();
+        let s = this.size;
+        // Tail wiggling amplitude
+        let wig = Math.sin(this.tailAngle) * s * 0.8;
+
+        context.save();
+        context.translate(this.pos.x, this.pos.y);
+        context.rotate(angle);
+
+        context.shadowColor = this.palette.glow;
+        context.shadowBlur = 6;
+
+        // 1. Drawing the Sweeping Tail
+        context.beginPath();
+        context.moveTo(-s * 0.8, 0); // Attach point to body
+        context.quadraticCurveTo(-s * 1.5, wig * 1.5, -s * 2.2, wig); // Top curve of tail
+        context.lineTo(-s * 1.5, wig * 0.2); // Tail notch
+        context.quadraticCurveTo(-s * 1.5, wig * 1.5, -s * 2.2, wig * 0.5); // Bottom curve of tail
+        context.closePath();
+        context.fillStyle = this.palette.secondary;
+        context.fill();
+
+        // 2. Drawing Pectoral Fins (Left and Right)
+        context.fillStyle = this.palette.accent;
+        context.beginPath(); // Left Fin
+        context.moveTo(s * 0.2, -s * 0.4);
+        context.quadraticCurveTo(0, -s * 1.2, -s * 0.5, -s * 0.6);
+        context.closePath();
+        context.fill();
+        
+        context.beginPath(); // Right Fin
+        context.moveTo(s * 0.2, s * 0.4);
+        context.quadraticCurveTo(0, s * 1.2, -s * 0.5, s * 0.6);
+        context.closePath();
+        context.fill();
+
+        // 3. Drawing the Main Body (Head to Tail base)
+        context.beginPath();
+        context.moveTo(s * 1.5, 0); // Nose
+        context.quadraticCurveTo(s * 0.5, -s * 0.9, -s * 1.0, 0); // Top curve
+        context.quadraticCurveTo(s * 0.5, s * 0.9, s * 1.5, 0); // Bottom curve
+        context.closePath();
+        context.fillStyle = this.palette.primary;
+        context.fill();
+
+        // 4. Drawing Eyes (Tiny black dots to give it a distinct face)
+        context.fillStyle = '#0f172a';
+        context.shadowBlur = 0; // Remove glow for eyes
+        context.beginPath(); context.arc(s * 1.0, -s * 0.25, s * 0.12, 0, Math.PI * 2); context.fill();
+        context.beginPath(); context.arc(s * 1.0, s * 0.25, s * 0.12, 0, Math.PI * 2); context.fill();
+
+        context.restore();
+      }
+    }
+
+    let school = [];
+    function initSchool() {
+      school = [];
+      for (let i = 0; i < CONFIG.fishCount; i++) {
+        school.push(new KoiFish(Math.random() * width, Math.random() * height));
+      }
+    }
+    initSchool();
+
+    // --- AUDIO ---
+    let audioCtx = null, analyser = null, micStream = null;
+    async function toggleSoundMode() {
+      const btn = document.getElementById('btnSound');
+      if (!state.soundMode) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          audioCtx.createMediaStreamSource(micStream).connect(analyser);
+          state.soundMode = true;
+          btn.textContent = 'Sound Mode: On'; btn.classList.add('active');
+        } catch (err) {
+          alert('Microphone access denied.');
+        }
+      } else {
+        if (micStream) micStream.getTracks().forEach(t => t.stop());
+        if (audioCtx) audioCtx.close();
+        state.soundMode = false; state.audioLevel = 0;
+        btn.textContent = 'Sound Mode: Off'; btn.classList.remove('active');
+      }
+    }
+    function updateAudioLevel() {
+      if (!state.soundMode || !analyser) return;
+      let data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      state.audioLevel = (data.reduce((a, b) => a + b, 0) / data.length) / 255;
+    }
+
+    // --- RENDER LOOP ---
+    function render() {
+      if (!state.isPaused) {
+        // Clear canvas with deep water color
+        ctx.fillStyle = `rgba(2, 6, 23, 0.5)`; // Gives a slight motion trail
+        ctx.fillRect(0, 0, width, height);
+
+        updateAudioLevel();
+
+        for (let i = wakeParticles.length - 1; i >= 0; i--) {
+          let p = wakeParticles[i];
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(125, 211, 252, ${p.alpha})`; ctx.fill();
+          p.alpha -= 0.02; p.radius *= 0.95;
+          if (p.alpha <= 0) wakeParticles.splice(i, 1);
+        }
+
+        for (let i = ripples.length - 1; i >= 0; i--) {
+          ripples[i].update(); ripples[i].draw(ctx);
+          if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+        }
+
+        school.forEach(fish => {
+          fish.behave(school);
+          fish.update();
+          fish.draw(ctx);
+        });
+      }
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+
+    // --- CONTROLS ---
+    const btns = {
+      still: document.getElementById('btnStillness'),
+      curr: document.getElementById('btnCurrent'),
+      pause: document.getElementById('btnPause'),
+      reset: document.getElementById('btnReset'),
+      sound: document.getElementById('btnSound')
+    };
+
+    btns.still.addEventListener('click', () => { state.speedMultiplier = CONFIG.stillnessSpeed; btns.still.classList.add('active'); btns.curr.classList.remove('active'); });
+    btns.curr.addEventListener('click', () => { state.speedMultiplier = 1.0; btns.curr.classList.add('active'); btns.still.classList.remove('active'); });
+    btns.pause.addEventListener('click', () => { state.isPaused = !state.isPaused; btns.pause.textContent = state.isPaused ? 'Resume' : 'Pause'; btns.pause.classList.toggle('active'); });
+    btns.reset.addEventListener('click', () => { initSchool(); ripples.length = 0; state.isPaused = false; state.speedMultiplier = 1.0; btns.curr.click(); btns.pause.textContent = 'Pause'; btns.pause.classList.remove('active'); });
+    btns.sound.addEventListener('click', toggleSoundMode);
+  </script>
+</body>
+</html>
